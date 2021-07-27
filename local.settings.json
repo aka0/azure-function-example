@@ -1,0 +1,8 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "VT_API_KEY": "5ba3ca50251ff8f6aa3fa43017fe13d5fb18d726896c7b89207ae90538b4d5d3"
+  }
+}
