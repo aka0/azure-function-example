@@ -16,6 +16,8 @@ def build_response(message: str, success: bool = False) -> str:
 
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+
+    # Message to Application Insights
     logging.info('Python HTTP trigger function received a request.')
     # Setup response JSON message for subsquent LogicApps
     # {"success": true, "message": "Some message"}
@@ -26,12 +28,14 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         req_body = req.get_json()
 
     except ValueError:
+        # Input not in JSON format
         return func.HttpResponse(
             build_response(message='Invalid JSON body', status_code=418))
 
-    # Extract EML text
+    # Extract EML text from JSON input
     eml = req_body.get('eml')
 
+    # Input in JSON but missing eml element
     if eml is None:
         return func.HttpResponse(build_response(message='Empty EML element'),
                                  status_code=418)
@@ -41,15 +45,16 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     parsed_eml = ep.decode_email_bytes(eml.encode(encoding='UTF-8'))
 
     # Extract relevant information
-    subject = parsed_eml.get('header').get('subject')
+    subject = parsed_eml.get('header', {}).get('subject')
 
     # Attachment (assuming there's only 1 hence index is hard coded as 0)
     # Extracted subject / filename / hash
-    filename = parsed_eml.get('attachment')[0].get('filename')
-    sha1hash = parsed_eml.get('attachment')[0].get('hash').get('sha1')
+    filename = parsed_eml.get('attachment', [])[0].get('filename')
+    sha1hash = parsed_eml.get('attachment', [])[0].get('hash', {}).get('sha1')
 
     # Setup VT / Process VT
     # Since it's MSTICpy you may not be restricted VT
+    # local setting in local.settings.json
     vt_api_key = os.environ['VT_API_KEY']
 
     # Inject a mailcious sha1
@@ -64,12 +69,13 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                                success=True))
 
         except vt.APIError as e:
+            # APIError such as Quota exceeded
             return func.HttpResponse(build_response(
                 message=f'File not found {sha1hash}. Reason {e}',
                 success=True),
                                      status_code=200)
 
-    # Finished EML analysis, create a JSON response with enough data for the next stage to use
+    # Finished EML analysis. Create a JSON response so the next stage could consume
     return func.HttpResponse(build_response(
         f'{subject} / {filename} / {sha1hash}', status=True),
                              status_code=200)
